@@ -1,0 +1,70 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"assignment-autotest/Unity/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 27,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 28,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "src",
+			"paths" : 
+			[
+				{
+					"from" : "assignment-autotest/Unity/src",
+					"to" : "."
+				}
+			],
+			"type" : "directory"
+		},
+		{
+			"backtrace" : 2,
+			"component" : "Unspecified",
+			"destination" : "share/unityConfig/cmake",
+			"exportName" : "unityConfig",
+			"exportTargets" : 
+			[
+				{
+					"id" : "unity::@2a6839d4307a562487b8",
+					"index" : 1
+				}
+			],
+			"paths" : 
+			[
+				"assignment-autotest/Unity/CMakeFiles/Export/48c7e70bc4cd97bc87a4e6ab65f93d66/unityConfig.cmake"
+			],
+			"type" : "export"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "assignment-autotest/Unity",
+		"source" : "assignment-autotest/Unity"
+	}
+}

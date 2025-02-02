@@ -1,0 +1,149 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.0.0"
+					},
+					"projectIndex" : 0,
+					"source" : "."
+				},
+				{
+					"build" : "assignment-autotest",
+					"childIndexes" : 
+					[
+						2
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-assignment-autotest-Debug-aad186592edd43fb92bb.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.0.0"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "assignment-autotest",
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"build" : "assignment-autotest/Unity",
+					"childIndexes" : 
+					[
+						3
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-assignment-autotest.Unity-Debug-902fac098ba8f3f5fc08.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.0"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 2,
+					"source" : "assignment-autotest/Unity"
+				},
+				{
+					"build" : "assignment-autotest/Unity/src",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-assignment-autotest.Unity.src-Debug-8cd0f39e40b3494af694.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.0"
+					},
+					"parentIndex" : 2,
+					"projectIndex" : 2,
+					"source" : "assignment-autotest/Unity/src",
+					"targetIndexes" : 
+					[
+						1
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "aesd-assignments"
+				},
+				{
+					"childIndexes" : 
+					[
+						2
+					],
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "assignment-autotest",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						2,
+						3
+					],
+					"name" : "unity",
+					"parentIndex" : 1,
+					"targetIndexes" : 
+					[
+						1
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 1,
+					"id" : "assignment-autotest::@c863f4d69dea3e7d0da4",
+					"jsonFile" : "target-assignment-autotest-Debug-7d529aaf1cb2c22eac8d.json",
+					"name" : "assignment-autotest",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "unity::@2a6839d4307a562487b8",
+					"jsonFile" : "target-unity-Debug-cc34a087ab8c83b76650.json",
+					"name" : "unity",
+					"projectIndex" : 2
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/matt/Documents/Education/Graduate/AdvancedEmbeddedSoftware/assignment-1-HartnettMatt/cmake-build-debug",
+		"source" : "/home/matt/Documents/Education/Graduate/AdvancedEmbeddedSoftware/assignment-1-HartnettMatt"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}

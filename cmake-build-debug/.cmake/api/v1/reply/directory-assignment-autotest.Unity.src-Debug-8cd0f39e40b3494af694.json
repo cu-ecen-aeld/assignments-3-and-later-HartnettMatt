@@ -1,0 +1,45 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"assignment-autotest/Unity/src/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 16,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "/home/matt/Documents/Education/Graduate/AdvancedEmbeddedSoftware/assignment-1-HartnettMatt/assignment-autotest/Unity/src",
+			"paths" : 
+			[
+				"assignment-autotest/Unity/src/libunity.a"
+			],
+			"targetId" : "unity::@2a6839d4307a562487b8",
+			"targetIndex" : 1,
+			"type" : "target"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "assignment-autotest/Unity/src",
+		"source" : "assignment-autotest/Unity/src"
+	}
+}
