@@ -1,3 +1,4 @@
+#!/bin/sh
 # Check if the correct number of arguments are provided
 if [ $# -ne 2 ]; then
     echo "Error: Two arguments required: <filesdir> <searchstr>"
