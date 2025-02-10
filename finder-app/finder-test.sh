@@ -56,8 +56,8 @@ echo "Removing the old writer utility and compiling as a native application"
 
 for i in $( seq 1 $NUMFILES)
 do
-	# Call writer.sh from the PATH; do not use a relative path
-	writer.sh "$WRITEDIR/${username}$i.txt" "$WRITESTR"
+	# Call writer from the PATH; do not use a relative path
+	writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
 # Run finder.sh from the PATH, capture its output, and write it to a file.
