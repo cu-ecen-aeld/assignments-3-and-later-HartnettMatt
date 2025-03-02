@@ -48,6 +48,9 @@
 #define DATA_FILE "/var/tmp/aesdsocketdata"
 #define READ_BUFFER_SIZE 1024
 
+// Global so that the signal handler can close the socket
+//int sockfd = -1;
+
 // Timestamping thread
 pthread_t timestamp_thread;
 
@@ -69,29 +72,37 @@ typedef struct thread_info_t {
 // Linked list head
 SLIST_HEAD(slisthead, thread_info_t) thread_list_head =     SLIST_HEAD_INITIALIZER(thread_list_head);
 
-// Signal handler: set flag and log the event
-static void signal_handler(int signo)
+// Handle signals
+static void *signal_thread_func(void *arg)
 {
+    // We'll receive the listening socket fd via `arg`
+    int sockfd = *(int *)arg;
+
+    // This is the same set we blocked in main
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+
+    int sig_caught = 0;
+    // Wait for either SIGINT or SIGTERM
+    if (sigwait(&set, &sig_caught) != 0) {
+        perror("sigwait");
+        pthread_exit(NULL);
+    }
+
+    // We got a signal => set the global flag
     terminate_flag = 1;
     syslog(LOG_INFO, "Caught signal, exiting");
+
+    // Force the accept() call to return in the main thread.
+    // This will cause accept() to fail with an error,
+    // so the main thread sees terminate_flag and exits.
+    shutdown(sockfd, SHUT_RDWR);
+
+    return NULL;
 }
 
-// Setup signal handlers for SIGINT and SIGTERM
-static int setup_signal_handlers(void)
-{
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = signal_handler;
-    if (sigaction(SIGINT, &sa, NULL) != 0) {
-        perror("sigaction SIGINT");
-        return -1;
-    }
-    if (sigaction(SIGTERM, &sa, NULL) != 0) {
-        perror("sigaction SIGTERM");
-        return -1;
-    }
-    return 0;
-}
 
 // Helper function to perform cleanup
 void cleanup(int sockfd)
@@ -209,6 +220,7 @@ void *connection_handler(void *arg)
             line_start = newline_ptr + 1;
         }
         if (connection_error) {
+            pthread_mutex_unlock(&file_mutex);
             break;
         }
 
@@ -248,7 +260,17 @@ void *connection_handler(void *arg)
 void *timestamp_thread_func(void *arg)
 {
     while (!terminate_flag) {
-        sleep(10);  // Wait 10 seconds
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+
+        // Calculate time until the next 10-second boundary
+        int seconds_to_sleep = 10 - (ts.tv_sec % 10);
+        int nanoseconds_to_sleep = -ts.tv_nsec; // Adjust to the exact start of the second
+
+        struct timespec sleep_time = {seconds_to_sleep, nanoseconds_to_sleep};
+        nanosleep(&sleep_time, NULL);
+
+        // Generate and write timestamp
         time_t now = time(NULL);
         struct tm *tm_info = localtime(&now);
         if (!tm_info) {
@@ -299,9 +321,20 @@ int main(int argc, char *argv[])
     openlog("aesdsocket", LOG_PID | LOG_NDELAY, LOG_USER);
 
     // Setup signal handlers
-    if (setup_signal_handlers() != 0) {
-        cleanup(sockfd);
-        return -1;
+//    if (setup_signal_handlers() != 0) {
+//        cleanup(sockfd);
+//        return -1;
+//    }
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+
+    // This blocks SIGINT and SIGTERM so they will NOT be delivered
+    // to any thread until we explicitly wait for them with sigwait()
+    if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0) {
+        perror("pthread_sigmask");
+        exit(EXIT_FAILURE);
     }
 
     // Create a TCP socket
@@ -314,11 +347,18 @@ int main(int argc, char *argv[])
 
     // Allow the socket to reuse the address
     int optval = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) != 0) {
-        perror("setsockopt");
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
+        perror("setsockopt SO_REUSEADDR");
         cleanup(sockfd);
         return -1;
     }
+
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
+        perror("setsockopt SO_REUSEPORT");
+        cleanup(sockfd);
+        return -1;
+    }
+
 
     // Bind the socket to port 9000
     struct sockaddr_in server_addr;
@@ -368,6 +408,14 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    // Start the signal handler thread to run in the background
+    pthread_t signal_thread;
+    if (pthread_create(&signal_thread, NULL, signal_thread_func, &sockfd) != 0) {
+        perror("pthread_create for signal handling thread");
+        cleanup(sockfd);
+        exit(EXIT_FAILURE);
+    }
+
     // Main loop: accept and process connections until termination is requested
     while (!terminate_flag) {
         // Check for completed threads before accepting a new connection
@@ -400,6 +448,7 @@ int main(int argc, char *argv[])
             continue;
         }
         tinfo->client_fd = client_fd;
+        tinfo->complete = false;
         memcpy(&tinfo->client_addr, &client_addr, sizeof(client_addr));
 
         // Create a thread to handle this connection
@@ -420,12 +469,13 @@ int main(int argc, char *argv[])
     thread_info_t *cur = NULL;
     thread_info_t *temp = NULL;
     SLIST_FOREACH_SAFE(cur, &thread_list_head, entries, temp) {
-        pthread_join(cur->thread_id, NULL);
         SLIST_REMOVE(&thread_list_head, cur, thread_info_t, entries);
+        pthread_join(cur->thread_id, NULL);
         free(cur);
     }
-    // End timestamp thread
+    // End timestamp and signal thread
     pthread_join(timestamp_thread, NULL);
+    pthread_join(signal_thread, NULL);
     cleanup(sockfd);
     return 0;
 }
