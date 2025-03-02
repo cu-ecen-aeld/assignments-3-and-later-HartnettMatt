@@ -265,7 +265,7 @@ void *timestamp_thread_func(void *arg)
 
         // Calculate time until the next 10-second boundary
         int seconds_to_sleep = 10 - (ts.tv_sec % 10);
-        int nanoseconds_to_sleep = (1000000000 - ts.tv_nsec) % 1000000000;
+        int nanoseconds_to_sleep = -ts.tv_nsec; // Adjust to the exact start of the second
 
         struct timespec sleep_time = {seconds_to_sleep, nanoseconds_to_sleep};
         nanosleep(&sleep_time, NULL);
