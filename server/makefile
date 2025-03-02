@@ -13,13 +13,13 @@
 CROSS_COMPILE ?=
 
 # The compiler and linker commands
-CC      := $(CROSS_COMPILE)gcc
-CFLAGS  := -Wall -Werror -std=gnu11
-LDFLAGS :=
+CC      ?= $(CROSS_COMPILE)gcc
+CFLAGS  ?= -Wall -Werror -std=gnu11
+LDFLAGS ?= -lpthread -lrt
 
 # The target application and its object files
-TARGET  := aesdsocket
-OBJS    := aesdsocket.o
+TARGET  ?= aesdsocket
+OBJS    = aesdsocket.o
 
 ###############################################################################
 # Default target: builds the aesdsocket application
@@ -30,7 +30,7 @@ all: $(TARGET)
 # Rules to build the target application
 ###############################################################################
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
