@@ -189,6 +189,14 @@ void *connection_handler(void *arg)
                 connection_error = true;
                 break;
             }
+            if (fflush(fp) != 0) {
+                perror("fflush");
+                fclose(fp);
+                pthread_mutex_unlock(&file_mutex);
+                connection_error = true;
+                break;
+            }
+
             fclose(fp);
             // Send the file contents back to the client
             fp = fopen(DATA_FILE, "r");
@@ -261,7 +269,7 @@ void *timestamp_thread_func(void *arg)
 {
     while (!terminate_flag) {
         struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
+        clock_gettime(CLOCK_MONOTONIC, &ts);
 
         // Calculate time until the next 10-second boundary
         int seconds_to_sleep = 10 - (ts.tv_sec % 10);
@@ -353,11 +361,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
-        perror("setsockopt SO_REUSEPORT");
-        cleanup(sockfd);
-        return -1;
-    }
+//    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
+//        perror("setsockopt SO_REUSEPORT");
+//        cleanup(sockfd);
+//        return -1;
+//    }
 
 
     // Bind the socket to port 9000
