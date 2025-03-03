@@ -220,7 +220,7 @@ void *connection_handler(void *arg)
             line_start = newline_ptr + 1;
         }
         if (connection_error) {
-            pthread_mutex_unlock(&file_mutex);
+//            pthread_mutex_unlock(&file_mutex);
             break;
         }
 
