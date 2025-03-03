@@ -19,7 +19,7 @@
  * The -d option causes the program to run as a daemon.
  *
  *****************************************************************************/
-
+#define _GNU_SOURCE
 #include <pthread.h>
 #include <sys/queue.h>
 #include <stdio.h>
