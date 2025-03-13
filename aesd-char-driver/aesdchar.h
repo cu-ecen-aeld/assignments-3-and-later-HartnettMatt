@@ -25,11 +25,11 @@
 
 struct aesd_dev
 {
-    struct aesd_circular_buffer cbuf;      /* Circular buffer for write commands */
-    struct mutex mutex;                    /* Mutex to protect concurrent access */
+    struct aesd_circular_buffer *cbuf;      /* Circular buffer for write commands */
+    struct mutex *mutex;                    /* Mutex to protect concurrent access */
     char *pending_buf;                     /* Buffer to hold incomplete write commands */
     size_t pending_buf_size;               /* Size of the pending buffer */
-    struct cdev cdev;     /* Char device structure      */
+    struct cdev *cdev;     /* Char device structure      */
 };
 
 
