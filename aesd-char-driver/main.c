@@ -106,7 +106,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     size_t total_len;
     char *newline_ptr = NULL;
     size_t write_offset = 0;
-    int ret = 0;
 
     PDEBUG("write %zu bytes with offset %lld", count, *f_pos);
 
@@ -151,7 +150,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             new_entry.buffptr = cmd_buf;
             new_entry.size = cmd_length;
             // Add the entry and capture any replaced pointer
-            char *old_cmd = aesd_circular_buffer_add_entry(dev->cbuf, &new_entry);
+            const char *old_cmd = aesd_circular_buffer_add_entry(dev->cbuf, &new_entry);
             if (old_cmd)
                 kfree(old_cmd);
         }
