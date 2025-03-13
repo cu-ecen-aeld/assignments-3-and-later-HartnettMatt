@@ -43,16 +43,29 @@
 	    (var) && ((tvar) = SLIST_NEXT((var), field), 1);		\
 	    (var) = (tvar))
 
+// Build switch: if not defined, default to 1 (use device driver endpoint)
+#ifndef USE_AESD_CHAR_DEVICE
+#define USE_AESD_CHAR_DEVICE 1
+#endif
+
+// Set the file path depending on the build switch
+#if USE_AESD_CHAR_DEVICE
+#define DATA_FILE "/dev/aesdchar"
+#else
+#define DATA_FILE "/var/tmp/aesdsocketdata"
+#endif
+
 #define PORT 9000
 #define BACKLOG 10
-#define DATA_FILE "/var/tmp/aesdsocketdata"
 #define READ_BUFFER_SIZE 1024
 
 // Global so that the signal handler can close the socket
 //int sockfd = -1;
 
-// Timestamping thread
+// Timestamping thread - only used when USE_AESD_CHAR_DEVICE is 0
+#if !USE_AESD_CHAR_DEVICE
 pthread_t timestamp_thread;
+#endif
 
 // Global flag set by signal handlers to indicate termination requested
 volatile sig_atomic_t terminate_flag = 0;
@@ -110,9 +123,11 @@ void cleanup(int sockfd)
     if (sockfd >= 0) {
         close(sockfd);
     }
+#if !USE_AESD_CHAR_DEVICE
     if (remove(DATA_FILE) != 0) {
         perror("remove");
     }
+#endif
     closelog();
 }
 
@@ -263,7 +278,7 @@ void *connection_handler(void *arg)
     return NULL;
 }
 
-
+#if !USE_AESD_CHAR_DEVICE
 // Timestamping thread function
 void *timestamp_thread_func(void *arg)
 {
@@ -306,6 +321,7 @@ void *timestamp_thread_func(void *arg)
     }
     return NULL;
 }
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -328,11 +344,6 @@ int main(int argc, char *argv[])
     // Open syslog for logging
     openlog("aesdsocket", LOG_PID | LOG_NDELAY, LOG_USER);
 
-    // Setup signal handlers
-//    if (setup_signal_handlers() != 0) {
-//        cleanup(sockfd);
-//        return -1;
-//    }
     sigset_t set;
     sigemptyset(&set);
     sigaddset(&set, SIGINT);
@@ -360,13 +371,6 @@ int main(int argc, char *argv[])
         cleanup(sockfd);
         return -1;
     }
-
-//    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
-//        perror("setsockopt SO_REUSEPORT");
-//        cleanup(sockfd);
-//        return -1;
-//    }
-
 
     // Bind the socket to port 9000
     struct sockaddr_in server_addr;
@@ -408,13 +412,14 @@ int main(int argc, char *argv[])
         cleanup(sockfd);
         return -1;
     }
-
+#if !USE_AESD_CHAR_DEVICE
     // Start timestamp thread to run in the background
     if (pthread_create(&timestamp_thread, NULL, timestamp_thread_func, NULL) != 0) {
         perror("pthread_create for timestamp thread");
         cleanup(sockfd);
         exit(EXIT_FAILURE);
     }
+#endif
 
     // Start the signal handler thread to run in the background
     pthread_t signal_thread;
@@ -482,7 +487,9 @@ int main(int argc, char *argv[])
         free(cur);
     }
     // End timestamp and signal thread
+#if !USE_AESD_CHAR_DEVICE
     pthread_join(timestamp_thread, NULL);
+#endif
     pthread_join(signal_thread, NULL);
     cleanup(sockfd);
     return 0;

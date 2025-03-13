@@ -2,7 +2,7 @@
  * aesdchar.h
  *
  *  Created on: Oct 23, 2019
- *      Author: Dan Walkes
+ *      Author: Dan Walkes, Matt Hartnett
  */
 
 #ifndef AESD_CHAR_DRIVER_AESDCHAR_H_
@@ -25,9 +25,10 @@
 
 struct aesd_dev
 {
-    /**
-     * TODO: Add structure(s) and locks needed to complete assignment requirements
-     */
+    struct aesd_circular_buffer cbuf;      /* Circular buffer for write commands */
+    struct mutex mutex;                    /* Mutex to protect concurrent access */
+    char *pending_buf;                     /* Buffer to hold incomplete write commands */
+    size_t pending_buf_size;               /* Size of the pending buffer */
     struct cdev cdev;     /* Char device structure      */
 };
 
