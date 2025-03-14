@@ -231,6 +231,11 @@ int aesd_init_module(void)
     aesd_device.pending_buf = NULL;
     aesd_device.pending_buf_size = 0;
 
+    aesd_device.cdev = kmalloc(sizeof(struct cdev), GFP_KERNEL);
+    if (!aesd_device.cdev) {
+        unregister_chrdev_region(dev, 1);
+        return -ENOMEM;
+    }
     result = aesd_setup_cdev(&aesd_device);
 
     if( result ) {
@@ -262,6 +267,7 @@ void aesd_cleanup_module(void)
         aesd_device.pending_buf_size = 0;
     }
     kfree(aesd_device.cbuf);
+    kfree(aesd_device.cdev);
     unregister_chrdev_region(devno, 1);
 }
 
