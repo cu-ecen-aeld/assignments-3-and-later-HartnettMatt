@@ -217,7 +217,16 @@ int aesd_init_module(void)
     memset(&aesd_device,0,sizeof(struct aesd_dev));
 
     // Initialize the AESD specific portion of the device
+    aesd_device.mutex = kmalloc(sizeof(struct mutex), GFP_KERNEL);
+	if (!aesd_device.mutex) {
+    	return -ENOMEM;
+    }
     mutex_init(aesd_device.mutex);
+    aesd_device.cbuf = kmalloc(sizeof(struct aesd_circular_buffer), GFP_KERNEL);
+    if (!aesd_device.cbuf) {
+        unregister_chrdev_region(dev, 1);
+        return -ENOMEM;
+    }
     aesd_circular_buffer_init(aesd_device.cbuf);
     aesd_device.pending_buf = NULL;
     aesd_device.pending_buf_size = 0;
@@ -238,6 +247,7 @@ void aesd_cleanup_module(void)
     cdev_del(aesd_device.cdev);
 
     // Cleanup AESD specific poritions - circular buffer and pending buffer
+    kfree(aesd_device.mutex);
     for (int i = 0; i < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; i++) {
         if (aesd_device.cbuf->entry[i].buffptr) {
             kfree(aesd_device.cbuf->entry[i].buffptr);
@@ -251,7 +261,7 @@ void aesd_cleanup_module(void)
         aesd_device.pending_buf = NULL;
         aesd_device.pending_buf_size = 0;
     }
-
+    kfree(aesd_device.cbuf);
     unregister_chrdev_region(devno, 1);
 }
 
