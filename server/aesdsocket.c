@@ -36,6 +36,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
+#include "aesd_ioctl.h" // Include ioctl definitions
 
 // Copied from BSD queue.h code https://github.com/freebsd/freebsd-src/blob/main/sys/sys/queue.h
 #define	SLIST_FOREACH_SAFE(var, head, field, tvar)			\
@@ -187,7 +188,61 @@ void *connection_handler(void *arg)
         while ((newline_ptr = memchr(line_start, '\n',
                       (incomplete_buf + incomplete_buf_len) - line_start))) {
             size_t line_len = newline_ptr - line_start + 1;
-            // Lock the mutex to synchronize file access
+            // Check for special AESDCHAR_IOCSEEKTO command
+            if (strncmp(line_start, "AESDCHAR_IOCSEEKTO:", 21) == 0) {
+                unsigned int write_cmd, write_cmd_offset;
+                // Parse the command parameters after the colon
+                if (sscanf(line_start + 21, "%u,%u", &write_cmd, &write_cmd_offset) != 2) {
+                    syslog(LOG_ERR, "Invalid AESDCHAR_IOCSEEKTO command format");
+                } else {
+                    // Perform ioctl on the aesdchar device before any further writes
+                    pthread_mutex_lock(&file_mutex);
+                    FILE *fp = fopen(DATA_FILE, "r+");
+                    if (fp == NULL) {
+                        perror("fopen for r+");
+                        pthread_mutex_unlock(&file_mutex);
+                        connection_error = true;
+                        break;
+                    }
+                    struct aesd_seekto seekto;
+                    seekto.write_cmd = write_cmd;
+                    seekto.write_cmd_offset = write_cmd_offset;
+                    int fd = fileno(fp);
+                    if (ioctl(fd, AESDCHAR_IOCSEEKTO, &seekto) < 0) {
+                        perror("ioctl");
+                        fclose(fp);
+                        pthread_mutex_unlock(&file_mutex);
+                        connection_error = true;
+                        break;
+                    }
+                    // After ioctl, read file contents starting from new file pointer
+                    {
+                        char file_buf[READ_BUFFER_SIZE];
+                        size_t bytes_read;
+                        while ((bytes_read = fread(file_buf, 1, sizeof(file_buf), fp)) > 0) {
+                            size_t bytes_sent = 0;
+                            while (bytes_sent < bytes_read) {
+                                ssize_t rc = send(client_fd, file_buf + bytes_sent,
+                                                  bytes_read - bytes_sent, 0);
+                                if (rc < 0) {
+                                    perror("send");
+                                    connection_error = true;
+                                    break;
+                                }
+                                bytes_sent += rc;
+                            }
+                            if (connection_error)
+                                break;
+                        }
+                    }
+                    fclose(fp);
+                    pthread_mutex_unlock(&file_mutex);
+                }
+                line_start = newline_ptr + 1;
+                continue;
+            }
+
+            // Normal command processing
             pthread_mutex_lock(&file_mutex);
             // Append packet to file
             FILE *fp = fopen(DATA_FILE, "a");
