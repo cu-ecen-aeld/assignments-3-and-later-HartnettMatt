@@ -60,6 +60,8 @@
 #define BACKLOG 10
 #define READ_BUFFER_SIZE 1024
 
+#define AESDCHAR_IOCSEEKTO_STR  "AESDCHAR_IOCSEEKTO:"
+
 // Global so that the signal handler can close the socket
 //int sockfd = -1;
 
@@ -190,9 +192,9 @@ void *connection_handler(void *arg)
                       (incomplete_buf + incomplete_buf_len) - line_start))) {
             size_t line_len = newline_ptr - line_start + 1;
             // Check for special AESDCHAR_IOCSEEKTO command
-            if (strncmp(line_start, "AESDCHAR_IOCSEEKTO:", 21) == 0) {
+            if (strncmp(line_start, "AESDCHAR_IOCSEEKTO:", strlen(AESDCHAR_IOCSEEKTO_STR)) == 0) {
                 unsigned int write_cmd, write_cmd_offset;
-                if (sscanf(line_start + 21, "%u,%u", &write_cmd, &write_cmd_offset) != 2) {
+                if (sscanf(line_start + strlen(AESDCHAR_IOCSEEKTO_STR), "%u,%u", &write_cmd, &write_cmd_offset) != 2) {
                     syslog(LOG_ERR, "Invalid AESDCHAR_IOCSEEKTO command format");
                 } else {
                     pthread_mutex_lock(&file_mutex);
