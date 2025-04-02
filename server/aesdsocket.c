@@ -36,6 +36,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
+#include "../aesd-char-driver/aesd_ioctl.h" // Include ioctl definitions
 
 // Copied from BSD queue.h code https://github.com/freebsd/freebsd-src/blob/main/sys/sys/queue.h
 #define	SLIST_FOREACH_SAFE(var, head, field, tvar)			\
@@ -58,6 +59,8 @@
 #define PORT 9000
 #define BACKLOG 10
 #define READ_BUFFER_SIZE 1024
+
+#define AESDCHAR_IOCSEEKTO_STR  "AESDCHAR_IOCSEEKTO:"
 
 // Global so that the signal handler can close the socket
 //int sockfd = -1;
@@ -153,6 +156,7 @@ void *connection_handler(void *arg)
     char *incomplete_buf = NULL;
     size_t incomplete_buf_len = 0;
     bool connection_error = false;
+    int dev_fd = -1;  // persistent device file descriptor for ioctl/read
 
     while (!terminate_flag) {
         ssize_t bytes_rcvd = recv(client_fd, recv_buf, sizeof(recv_buf), 0);
@@ -187,7 +191,60 @@ void *connection_handler(void *arg)
         while ((newline_ptr = memchr(line_start, '\n',
                       (incomplete_buf + incomplete_buf_len) - line_start))) {
             size_t line_len = newline_ptr - line_start + 1;
-            // Lock the mutex to synchronize file access
+            // Check for special AESDCHAR_IOCSEEKTO command
+            if (strncmp(line_start, "AESDCHAR_IOCSEEKTO:", strlen(AESDCHAR_IOCSEEKTO_STR)) == 0) {
+                unsigned int write_cmd, write_cmd_offset;
+                if (sscanf(line_start + strlen(AESDCHAR_IOCSEEKTO_STR), "%u,%u", &write_cmd, &write_cmd_offset) != 2) {
+                    syslog(LOG_ERR, "Invalid AESDCHAR_IOCSEEKTO command format");
+                } else {
+                    pthread_mutex_lock(&file_mutex);
+                    // Open the device once if not already open
+                    if (dev_fd < 0) {
+                        dev_fd = open(DATA_FILE, O_RDWR);
+                        if (dev_fd < 0) {
+                            perror("open");
+                            pthread_mutex_unlock(&file_mutex);
+                            connection_error = true;
+                            break;
+                        }
+                    }
+                    struct aesd_seekto seekto;
+                    seekto.write_cmd = write_cmd;
+                    seekto.write_cmd_offset = write_cmd_offset;
+                    if (ioctl(dev_fd, AESDCHAR_IOCSEEKTO, &seekto) < 0) {
+                        perror("ioctl");
+                        pthread_mutex_unlock(&file_mutex);
+                        connection_error = true;
+                        break;
+                    }
+                    // Read from the same device descriptor so that the offset (set by ioctl)
+                    // is honored
+                    {
+                        char file_buf[READ_BUFFER_SIZE];
+                        ssize_t bytes_read;
+                        while ((bytes_read = read(dev_fd, file_buf, sizeof(file_buf))) > 0) {
+                            ssize_t bytes_sent = 0;
+                            while (bytes_sent < bytes_read) {
+                                ssize_t rc = send(client_fd, file_buf + bytes_sent,
+                                                  bytes_read - bytes_sent, 0);
+                                if (rc < 0) {
+                                    perror("send");
+                                    connection_error = true;
+                                    break;
+                                }
+                                bytes_sent += rc;
+                            }
+                            if (connection_error)
+                                break;
+                        }
+                    }
+                    pthread_mutex_unlock(&file_mutex);
+                }
+                line_start = newline_ptr + 1;
+                continue;
+            }
+
+            // Normal command processing (append to file)
             pthread_mutex_lock(&file_mutex);
             // Append packet to file
             FILE *fp = fopen(DATA_FILE, "a");
@@ -221,21 +278,25 @@ void *connection_handler(void *arg)
                 connection_error = true;
                 break;
             }
-            char file_buf[READ_BUFFER_SIZE];
-            size_t bytes_read;
-            while ((bytes_read = fread(file_buf, 1, sizeof(file_buf), fp)) > 0) {
-                size_t bytes_sent = 0;
-                while (bytes_sent < bytes_read) {
-                    ssize_t rc = send(client_fd, file_buf + bytes_sent,
-                                      bytes_read - bytes_sent, 0);
-                    if (rc < 0) {
-                        perror("send");
-                        fclose(fp);
-                        pthread_mutex_unlock(&file_mutex);
-                        connection_error = true;
-                        break;
+            {
+                char file_buf[READ_BUFFER_SIZE];
+                size_t bytes_read;
+                while ((bytes_read = fread(file_buf, 1, sizeof(file_buf), fp)) > 0) {
+                    size_t bytes_sent = 0;
+                    while (bytes_sent < bytes_read) {
+                        ssize_t rc = send(client_fd, file_buf + bytes_sent,
+                                          bytes_read - bytes_sent, 0);
+                        if (rc < 0) {
+                            perror("send");
+                            fclose(fp);
+                            pthread_mutex_unlock(&file_mutex);
+                            connection_error = true;
+                            break;
+                        }
+                        bytes_sent += rc;
                     }
-                    bytes_sent += rc;
+                    if (connection_error)
+                        break;
                 }
             }
             fclose(fp);
@@ -243,7 +304,6 @@ void *connection_handler(void *arg)
             line_start = newline_ptr + 1;
         }
         if (connection_error) {
-//            pthread_mutex_unlock(&file_mutex);
             break;
         }
 
@@ -264,7 +324,6 @@ void *connection_handler(void *arg)
     }
 
     free(incomplete_buf);
-    incomplete_buf = NULL;
     close(client_fd);
 
     // Log connection closure
@@ -277,6 +336,7 @@ void *connection_handler(void *arg)
     tinfo->complete = true;
     return NULL;
 }
+
 
 #if !USE_AESD_CHAR_DEVICE
 // Timestamping thread function
