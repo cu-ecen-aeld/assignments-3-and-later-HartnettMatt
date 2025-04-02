@@ -36,7 +36,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
-//#include "aesd_ioctl.h" // Include ioctl definitions
+#include "../aesd-char-driver/aesd_ioctl.h" // Include ioctl definitions
 
 // Copied from BSD queue.h code https://github.com/freebsd/freebsd-src/blob/main/sys/sys/queue.h
 #define	SLIST_FOREACH_SAFE(var, head, field, tvar)			\
